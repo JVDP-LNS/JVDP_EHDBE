@@ -7,24 +7,32 @@ from kivy.uix.button import Button
 from kivy.uix.label import Label
 from kivy.uix.scatter import Scatter
 from kivy.core.window import Window
+from kivy.uix.layout import Layout
 
 windowSize = (600, 1024)
-gridColors = [(0.5,0.5,0.5,0.5), (0,0,1,0.5), (0,1,0,0.5), (0,1,1,0.5), (1,0,0,0.5), (1,1,0,0.5), (0.1,0.1,0.1,0.5)]
+gridColors = [(0,0,0,0), (0,0,1,0.5), (0,1,0,0.5), (0,1,1,0.5), (1,0,0,0.5), (1,1,0,0.5), (0.1,0.1,0.1,0.5)]
 initialGridSize = 10
 
-class Grid(GridLayout):
+class Grid(Layout):
     layout: list[str]
     elementLayout: list = []
     squareSize: int = windowSize[0]
     selectedSlot: int = 0
+    canvasBG = None
+    imageBG = None
+    cols = initialGridSize
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
         temp = min(windowSize[0], windowSize[1])
         self.size = (temp, temp)
-        self.cols = initialGridSize
         self.updateStats()
+        with self.canvas:
+            Color(rgb=(0.1, 0.1, 0.1))
+            self.canvasBG = Rectangle(pos=self.pos, size=(temp, temp)) # Background
+            Color(rgb=(1,1,1))
+            self.imageBG = Rectangle(pos=self.pos, size=(0, 0))
 
         self.layout = ["0" for i in range(self.cols ** 2)]
         with self.canvas:
@@ -36,7 +44,72 @@ class Grid(GridLayout):
     def updateStats(self):
         self.squareSize = self.size[0] / self.cols
         print(self.squareSize)
+
+    def increaseGridSize(self, sizeDiff: int):
+        newLayout: list[str] = []
+        newElementLayout: list = []
+        newCols = self.cols + sizeDiff
+        newSquareSize: int = self.size[0] / newCols
+        index: int = 0
+
+        for i in range(sizeDiff):
+            for j in range(newCols):
+                newLayout.append("0")
+                with self.canvas:
+                    Color(rgba=gridColors[0])
+                    newElementLayout.append(Rectangle(pos=(j * newSquareSize, i * newSquareSize), size=(newSquareSize, newSquareSize)))
+        for i in range(self.cols):
+            for j in range(self.cols):
+                newLayout.append(self.layout[index])
+                self.canvas.remove(self.elementLayout[index])
+                with self.canvas:
+                    Color(rgba=gridColors[int(self.layout[index])])
+                    newElementLayout.append(Rectangle(pos=(j * newSquareSize, (sizeDiff + i) * newSquareSize), size=(newSquareSize, newSquareSize)))
+                index += 1
+            for j in range(sizeDiff):
+                newLayout.append("0")
+                with self.canvas:
+                    Color(rgba=gridColors[0])
+                    newElementLayout.append(Rectangle(pos=((self.cols + j) * newSquareSize, (sizeDiff + i) * newSquareSize), size=(newSquareSize, newSquareSize)))
         
+        self.cols = newCols
+        self.squareSize = newSquareSize
+        self.layout = newLayout
+        self.elementLayout = newElementLayout
+
+    def decreaseGridSize(self, sizeDiff: int):
+        newLayout: list[str] = []
+        newElementLayout: list = []
+        newCols = self.cols - sizeDiff
+        newSquareSize: int = self.size[0] / newCols
+        index: int = sizeDiff * self.cols
+
+        for element in self.elementLayout:
+            self.canvas.remove(element)
+
+        for i in range(newCols):
+            for j in range(newCols):
+                newLayout.append(self.layout[index])
+                with self.canvas:
+                    Color(rgba=gridColors[int(self.layout[index])])
+                    newElementLayout.append(Rectangle(pos=(j * newSquareSize, i * newSquareSize), size=(newSquareSize, newSquareSize)))
+                index += 1
+            index += sizeDiff
+        
+        self.cols = newCols
+        self.squareSize = newSquareSize
+        self.layout = newLayout
+        self.elementLayout = newElementLayout
+
+    def setGridBG(self, path: str):
+        self.imageBG.source = path
+        self.imageBG.size = self.size
+
+    def hideGridBG(self):
+        self.imageBG.size = (0,0)
+
+    def showGridBG(self):
+        self.imageBG.size = self.size
 
     def on_touch_move(self, touch):
         super().on_touch_move(touch)
@@ -80,8 +153,8 @@ class GridSpaceWindow(BoxLayout):
     gridView = GridView()
     selectView = BoxLayout()
     gridSettingsView = BoxLayout()
-    gridBgButton = Button(text="Select Background Image")
-    gridSizeLabel = Button(text="10", disabled=True)
+    gridBGButton = Button(text="Select Background Image")
+    gridSizeInput = TextInput(text="10", background_color=gridColors[0], foreground_color=(1,1,1), multiline=False)
     gridSizeChangeView = BoxLayout()
     gridSizeUp = Button(text="Up")
     gridSizeDown = Button(text="Down")
@@ -106,16 +179,21 @@ class GridSpaceWindow(BoxLayout):
         if(self.gridSettingsView):
             self.gridSettingsView.size_hint_y = 1/12
 
-            self.gridBgButton.size_hint_x = 0.8
-            self.gridSettingsView.add_widget(self.gridBgButton)
+            self.gridBGButton.size_hint_x = 0.8
+            self.gridBGButton.bind(on_release=self.getGridBG)
+            self.gridSettingsView.add_widget(self.gridBGButton)
             
-            self.gridSizeLabel.size_hint_x = 0.1
-            self.gridSettingsView.add_widget(self.gridSizeLabel)
+            self.gridSizeInput.size_hint_x = 0.1
+            self.gridSizeInput.bind(on_text_validate=self.gridSizeInputSubmit)
+            self.gridSettingsView.add_widget(self.gridSizeInput)
             
             self.gridSizeChangeView.size_hint_x = 0.1
             self.gridSizeChangeView.orientation = "vertical"
+            self.gridSizeUp.bind(on_release=self.gridSizeUpFunction)
             self.gridSizeChangeView.add_widget(self.gridSizeUp)
+            self.gridSizeDown.bind(on_release=self.gridSizeDownFunction)
             self.gridSizeChangeView.add_widget(self.gridSizeDown)
+
             self.gridSettingsView.add_widget(self.gridSizeChangeView)
 
         self.add_widget(self.gridView)
@@ -125,6 +203,31 @@ class GridSpaceWindow(BoxLayout):
     def slotSelect(self, instance):
         self.gridView.grid.selectedSlot = instance.slotNumber
         print(f"Button Number: {instance.slotNumber} | SelectedSlot: {self.gridView.grid.selectedSlot}")
+
+    def getGridBG(self, instance):
+        path = "D:\Blender\Exports\\2basem.png"
+        self.gridView.grid.setGridBG(path)
+    
+    def gridSizeInputSubmit(self, instance):
+        grid = self.gridView.grid
+        curGridCols = grid.cols
+        sizeDiff = int(instance.text) - grid.cols
+        if(sizeDiff > 0):
+            grid.increaseGridSize(sizeDiff)
+        elif(sizeDiff < 0):
+            grid.decreaseGridSize(-sizeDiff)
+
+    def gridSizeUpFunction(self, instance):
+        grid = self.gridView.grid
+        grid.increaseGridSize(1)
+        self.gridSizeInput.text = str(grid.cols)
+
+    def gridSizeDownFunction(self, instance):
+        grid = self.gridView.grid
+        grid.decreaseGridSize(1)
+        self.gridSizeInput.text = str(grid.cols)
+
+
                                 
 class DetailsWindow(BoxLayout):
     layoutDetails = BoxLayout()
