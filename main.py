@@ -1,16 +1,15 @@
 from kivy.app import App
 from kivy.graphics import Color, Rectangle
 from kivy.uix.boxlayout import BoxLayout
-from kivy.uix.gridlayout import GridLayout
 from kivy.uix.textinput import TextInput
 from kivy.uix.button import Button
-from kivy.uix.label import Label
 from kivy.uix.scatter import Scatter
 from kivy.core.window import Window
 from kivy.uix.layout import Layout
 from kivy.uix.screenmanager import ScreenManager, Screen, FadeTransition
 
-windowSize = (600, 1024)
+Window.maximize()
+windowSize = Window.size
 gridColors = [(0,0,0,0), (0,0,1,0.5), (0,1,0,0.5), (0,1,1,0.5), (1,0,0,0.5), (1,1,0,0.5), (0.1,0.1,0.1,0.5)]
 initialGridSize = 10
 
