@@ -8,6 +8,7 @@ from kivy.uix.label import Label
 from kivy.uix.scatter import Scatter
 from kivy.core.window import Window
 from kivy.uix.layout import Layout
+from kivy.uix.screenmanager import ScreenManager, Screen, FadeTransition
 
 windowSize = (600, 1024)
 gridColors = [(0,0,0,0), (0,0,1,0.5), (0,1,0,0.5), (0,1,1,0.5), (1,0,0,0.5), (1,1,0,0.5), (0.1,0.1,0.1,0.5)]
@@ -138,6 +139,7 @@ class GridView(Scatter):
         self.auto_bring_to_front = False
         self.scale_min = 0.5
         self.scale_max = 2.0
+        self.size = (windowSize[0], windowSize[0])
         
         self.add_widget(self.grid)
     pass
@@ -205,8 +207,12 @@ class GridSpaceWindow(BoxLayout):
         print(f"Button Number: {instance.slotNumber} | SelectedSlot: {self.gridView.grid.selectedSlot}")
 
     def getGridBG(self, instance):
-        path = "D:\Blender\Exports\\2basem.png"
-        self.gridView.grid.setGridBG(path)
+        from plyer import filechooser
+        filechooser.open_file(on_selection=self.imageSelected)
+
+    def imageSelected(self, image):
+        if len(image) > 0:
+            self.gridView.grid.setGridBG(image[0])
     
     def gridSizeInputSubmit(self, instance):
         grid = self.gridView.grid
@@ -249,7 +255,7 @@ class DetailsWindow(BoxLayout):
     def generateLayout(self, instance):
         curApp = App.get_running_app()
         string = ""
-        grid = curApp.root.gridSpace.gridView.grid
+        grid = self.parent.gridSpace.gridView.grid
         for i in range(grid.cols-1, -1, -1):
             for j in range(grid.cols):
                 string += grid.layout[i * grid.cols + j]
@@ -271,7 +277,12 @@ class MainWindow(BoxLayout):
 
 class DBE(App):
     def build(self):
-        return MainWindow()
+        self.screenManager = ScreenManager()
+        self.mainWindow = MainWindow()
+        screen = Screen(name="Main Screen")
+        screen.add_widget(self.mainWindow)
+        self.screenManager.add_widget(screen)
+        return self.screenManager
     
 if __name__ == '__main__' :
     Window.size = windowSize
