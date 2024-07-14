@@ -7,6 +7,11 @@ from kivy.uix.scatter import Scatter
 from kivy.core.window import Window
 from kivy.uix.layout import Layout
 from kivy.uix.screenmanager import ScreenManager, Screen, FadeTransition
+from kivy import platform
+
+if platform == "android":
+    from android.permissions import Permission, request_permissions # type: ignore
+    request_permissions([Permission.READ_EXTERNAL_STORAGE, Permission.WRITE_EXTERNAL_STORAGE])
 
 Window.maximize()
 windowSize = Window.size
