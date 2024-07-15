@@ -26,7 +26,7 @@ class Grid(Layout):
     imageBG = None
     cols = initialGridSize
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
 
         temp = min(windowSize[0], windowSize[1])
@@ -39,17 +39,12 @@ class Grid(Layout):
             self.imageBG = Rectangle(pos=self.pos, size=(0, 0))
 
         self.layout = ["0" for i in range(self.cols ** 2)]
-        with self.canvas:
-            Color(rgba=gridColors[0])
-            for i in range(self.cols):
-                for j in range(self.cols):
-                    self.elementLayout.append(Rectangle(pos=(j * self.squareSize, i * self.squareSize), size=(self.squareSize, self.squareSize)))
+        self.elementLayout = [None for i in range(self.cols **2)]
                 
-    def updateStats(self):
+    def updateStats(self) -> None:
         self.squareSize = self.size[0] / self.cols
-        print(self.squareSize)
 
-    def increaseGridSize(self, sizeDiff: int):
+    def increaseGridSize(self, sizeDiff: int) -> None:
         newLayout: list[str] = []
         newElementLayout: list = []
         newCols = self.cols + sizeDiff
@@ -59,28 +54,31 @@ class Grid(Layout):
         for i in range(sizeDiff):
             for j in range(newCols):
                 newLayout.append("0")
-                with self.canvas:
-                    Color(rgba=gridColors[0])
-                    newElementLayout.append(Rectangle(pos=(j * newSquareSize, i * newSquareSize), size=(newSquareSize, newSquareSize)))
+                newElementLayout.append(None)
         for i in range(self.cols):
             for j in range(self.cols):
                 newLayout.append(self.layout[index])
-                self.elementLayout[index].pos = (j * newSquareSize, (sizeDiff + i) * newSquareSize)
-                self.elementLayout[index].size = (newSquareSize, newSquareSize)
+                if(self.elementLayout[index]):
+                    self.elementLayout[index].pos = (j * newSquareSize, (sizeDiff + i) * newSquareSize)
+                    self.elementLayout[index].size = (newSquareSize, newSquareSize)
                 newElementLayout.append(self.elementLayout[index])
                 index += 1
             for j in range(sizeDiff):
                 newLayout.append("0")
-                with self.canvas:
-                    Color(rgba=gridColors[0])
-                    newElementLayout.append(Rectangle(pos=((self.cols + j) * newSquareSize, (sizeDiff + i) * newSquareSize), size=(newSquareSize, newSquareSize)))
+                newElementLayout.append(None)
         
         self.cols = newCols
         self.squareSize = newSquareSize
         self.layout = newLayout
         self.elementLayout = newElementLayout
 
-    def decreaseGridSize(self, sizeDiff: int):
+    def decreaseGridSize(self, sizeDiff: int) -> None:
+        if(sizeDiff >= self.cols):
+            if(self.cols > 1):
+                sizeDiff = self.cols - 1
+            else: 
+                return
+
         newLayout: list[str] = []
         newElementLayout: list = []
         newCols = self.cols - sizeDiff
@@ -90,11 +88,13 @@ class Grid(Layout):
         for i in range(self.cols):
             for j in range(self.cols):
                 if (i < sizeDiff or j >= self.cols - sizeDiff):
-                    self.canvas.remove(self.elementLayout[index])
+                    if(self.elementLayout[index]):
+                        self.canvas.remove(self.elementLayout[index])
                 else:
                     newLayout.append(self.layout[index])
-                    self.elementLayout[index].pos = (j * newSquareSize, (i - sizeDiff) * newSquareSize)
-                    self.elementLayout[index].size = (newSquareSize, newSquareSize)
+                    if(self.elementLayout[index]):
+                        self.elementLayout[index].pos = (j * newSquareSize, (i - sizeDiff) * newSquareSize)
+                        self.elementLayout[index].size = (newSquareSize, newSquareSize)
                     newElementLayout.append(self.elementLayout[index])
                 index += 1
         
@@ -103,14 +103,14 @@ class Grid(Layout):
         self.layout = newLayout
         self.elementLayout = newElementLayout
 
-    def setGridBG(self, path: str):
+    def setGridBG(self, path: str) -> None:
         self.imageBG.source = path
         self.imageBG.size = self.size
 
-    def hideGridBG(self):
+    def hideGridBG(self) -> None:
         self.imageBG.size = (0,0)
 
-    def showGridBG(self):
+    def showGridBG(self) -> None:
         self.imageBG.size = self.size
 
     def on_touch_move(self, touch):
@@ -121,10 +121,14 @@ class Grid(Layout):
             return
         tempGridPos = (int(relPos[0] / self.squareSize), int(relPos[1] / self.squareSize))
         print(tempGridPos)
-        self.canvas.remove(self.elementLayout[tempGridPos[0] + self.cols * tempGridPos[1]])
-        with self.canvas:
-            Color(rgba=gridColors[self.selectedSlot])
-            self.elementLayout[tempGridPos[0] + self.cols * tempGridPos[1]] = Rectangle(pos=(tempGridPos[0] * self.squareSize, tempGridPos[1] * self.squareSize), size=(self.squareSize, self.squareSize))
+        if(self.elementLayout[tempGridPos[0] + self.cols * tempGridPos[1]]):
+            self.canvas.remove(self.elementLayout[tempGridPos[0] + self.cols * tempGridPos[1]])
+        if(self.selectedSlot > 0):
+            with self.canvas:
+                Color(rgba=gridColors[self.selectedSlot])
+                self.elementLayout[tempGridPos[0] + self.cols * tempGridPos[1]] = Rectangle(pos=(tempGridPos[0] * self.squareSize, tempGridPos[1] * self.squareSize), size=(self.squareSize, self.squareSize))
+        else:
+            self.elementLayout[tempGridPos[0] + self.cols * tempGridPos[1]] = None
         self.layout[tempGridPos[0] + self.cols * tempGridPos[1]] = str(self.selectedSlot)
 
 
