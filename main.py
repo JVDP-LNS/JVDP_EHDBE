@@ -12,9 +12,8 @@ from kivy import platform
 if platform == "android":
     from android.permissions import Permission, request_permissions # type: ignore
     request_permissions([Permission.READ_EXTERNAL_STORAGE, Permission.WRITE_EXTERNAL_STORAGE])
-
-Window.maximize()
-windowSize = Window.size
+    Window.maximize()
+windowSize = (450, 800)
 gridColors = [(0,0,0,0), (0,0,1,0.5), (0,1,0,0.5), (0,1,1,0.5), (1,0,0,0.5), (1,1,0,0.5), (0.1,0.1,0.1,0.5)]
 initialGridSize = 10
 
@@ -66,10 +65,9 @@ class Grid(Layout):
         for i in range(self.cols):
             for j in range(self.cols):
                 newLayout.append(self.layout[index])
-                self.canvas.remove(self.elementLayout[index])
-                with self.canvas:
-                    Color(rgba=gridColors[int(self.layout[index])])
-                    newElementLayout.append(Rectangle(pos=(j * newSquareSize, (sizeDiff + i) * newSquareSize), size=(newSquareSize, newSquareSize)))
+                self.elementLayout[index].pos = (j * newSquareSize, (sizeDiff + i) * newSquareSize)
+                self.elementLayout[index].size = (newSquareSize, newSquareSize)
+                newElementLayout.append(self.elementLayout[index])
                 index += 1
             for j in range(sizeDiff):
                 newLayout.append("0")
@@ -87,19 +85,18 @@ class Grid(Layout):
         newElementLayout: list = []
         newCols = self.cols - sizeDiff
         newSquareSize: int = self.size[0] / newCols
-        index: int = sizeDiff * self.cols
+        index: int = 0
 
-        for element in self.elementLayout:
-            self.canvas.remove(element)
-
-        for i in range(newCols):
-            for j in range(newCols):
-                newLayout.append(self.layout[index])
-                with self.canvas:
-                    Color(rgba=gridColors[int(self.layout[index])])
-                    newElementLayout.append(Rectangle(pos=(j * newSquareSize, i * newSquareSize), size=(newSquareSize, newSquareSize)))
+        for i in range(self.cols):
+            for j in range(self.cols):
+                if (i < sizeDiff or j >= self.cols - sizeDiff):
+                    self.canvas.remove(self.elementLayout[index])
+                else:
+                    newLayout.append(self.layout[index])
+                    self.elementLayout[index].pos = (j * newSquareSize, (i - sizeDiff) * newSquareSize)
+                    self.elementLayout[index].size = (newSquareSize, newSquareSize)
+                    newElementLayout.append(self.elementLayout[index])
                 index += 1
-            index += sizeDiff
         
         self.cols = newCols
         self.squareSize = newSquareSize
