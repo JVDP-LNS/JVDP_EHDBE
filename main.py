@@ -1,7 +1,8 @@
 from kivy.app import App
-from kivy.graphics import Color, Rectangle
+from kivy.graphics import Color, Rectangle, Line
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.textinput import TextInput
+from kivy.uix.image import Image
 from kivy.uix.button import Button
 from kivy.uix.scatter import Scatter
 from kivy.core.window import Window
@@ -13,17 +14,22 @@ if platform == "android":
     from android.permissions import Permission, request_permissions # type: ignore
     request_permissions([Permission.READ_EXTERNAL_STORAGE, Permission.WRITE_EXTERNAL_STORAGE])
     Window.maximize()
+
 windowSize = (450, 800)
 gridColors = [(0,0,0,0), (0,0,1,0.5), (0,1,0,0.5), (0,1,1,0.5), (1,0,0,0.5), (1,1,0,0.5), (0.1,0.1,0.1,0.5)]
 initialGridSize = 10
 
+
 class Grid(Layout):
     layout: list[str]
-    elementLayout: list = []
-    squareSize: int = windowSize[0]
+    elementLayout: list
+    gridLinesHorizontal: list = []
+    gridLinesVertical: list = []
+    squareSize: int
     selectedSlot: int = 0
     canvasBG = None
-    imageBG = None
+    imageLayout = Scatter(do_rotation = False, rotation = 90, do_scale = False, do_translation = False)
+    imageBG = Image()
     cols = initialGridSize
 
     def __init__(self, **kwargs) -> None:
@@ -32,14 +38,23 @@ class Grid(Layout):
         temp = min(windowSize[0], windowSize[1])
         self.size = (temp, temp)
         self.updateStats()
+
         with self.canvas:
             Color(rgb=(0.1, 0.1, 0.1))
             self.canvasBG = Rectangle(pos=self.pos, size=(temp, temp)) # Background
-            Color(rgb=(1,1,1))
-            self.imageBG = Rectangle(pos=self.pos, size=(0, 0))
+        self.imageBG.size = self.size
+        self.imageLayout.size = self.size
+        self.imageLayout.pos = (self.size[0], 0)
+        self.imageLayout.add_widget(self.imageBG)
+        self.add_widget(self.imageLayout)
 
         self.layout = ["0" for i in range(self.cols ** 2)]
         self.elementLayout = [None for i in range(self.cols **2)]
+        with self.canvas.after:
+            Color(rgb=(0,0,0))
+            for i in range(1, self.cols):
+                self.gridLinesVertical.append(Line(points=[i * self.squareSize, 0, i * self.squareSize, self.size[1]]))
+                self.gridLinesHorizontal.append(Line(points=[0, i * self.squareSize, self.size[1], i * self.squareSize]))
                 
     def updateStats(self) -> None:
         self.squareSize = self.size[0] / self.cols
@@ -51,10 +66,25 @@ class Grid(Layout):
         newSquareSize: int = self.size[0] / newCols
         index: int = 0
 
+        for lineV, lineH in zip(self.gridLinesVertical, self.gridLinesHorizontal):
+            temp = (index+1) * newSquareSize
+            lineV.points = ([temp, 0, temp, self.size[1]])
+            lineH.points = ([0, temp, self.size[1], temp])
+            index += 1
+        
+        index = 0
+        
         for i in range(sizeDiff):
             for j in range(newCols):
                 newLayout.append("0")
                 newElementLayout.append(None)
+            temp: int = (self.cols + i) * newSquareSize
+
+            with self.canvas.after:
+                Color(rgb=(0,0,0))
+                self.gridLinesVertical.append(Line(points=[temp, 0, temp, self.size[1]]))
+                self.gridLinesHorizontal.append(Line(points=[0, temp, self.size[1], temp]))
+            
         for i in range(self.cols):
             for j in range(self.cols):
                 newLayout.append(self.layout[index])
@@ -85,6 +115,18 @@ class Grid(Layout):
         newSquareSize: int = self.size[0] / newCols
         index: int = 0
 
+        for i in range(sizeDiff):
+            self.canvas.after.remove(self.gridLinesHorizontal.pop())
+            self.canvas.after.remove(self.gridLinesVertical.pop())
+
+        for lineV, lineH in zip(self.gridLinesVertical, self.gridLinesHorizontal):
+            temp = (index+1) * newSquareSize
+            lineV.points = ([temp, 0, temp, self.size[1]])
+            lineH.points = ([0, temp, self.size[1], temp])
+            index += 1
+        
+        index = 0
+
         for i in range(self.cols):
             for j in range(self.cols):
                 if (i < sizeDiff or j >= self.cols - sizeDiff):
@@ -105,13 +147,14 @@ class Grid(Layout):
 
     def setGridBG(self, path: str) -> None:
         self.imageBG.source = path
-        self.imageBG.size = self.size
+        self.imageLayout.pos = (0,0)
 
     def hideGridBG(self) -> None:
         self.imageBG.size = (0,0)
 
     def showGridBG(self) -> None:
-        self.imageBG.size = self.size
+        # self.imageBG.size = self.size
+        pass
 
     def on_touch_move(self, touch):
         super().on_touch_move(touch)
@@ -144,10 +187,10 @@ class GridView(Scatter):
         self.auto_bring_to_front = False
         self.scale_min = 0.5
         self.scale_max = 2.0
-        self.size = (windowSize[0], windowSize[0])
+        self.size = (Window.size[0], Window.size[0])
         
         self.add_widget(self.grid)
-    pass
+
 
 class SlotSelectButton(Button):
     slotNumber: int
@@ -155,6 +198,7 @@ class SlotSelectButton(Button):
     def __init__(self, slotNumber: int, **kwargs):
         super().__init__(**kwargs)
         self.slotNumber = slotNumber
+
 
 class GridSpaceWindow(BoxLayout):
     gridView = GridView()
@@ -227,6 +271,7 @@ class GridSpaceWindow(BoxLayout):
             grid.increaseGridSize(sizeDiff)
         elif(sizeDiff < 0):
             grid.decreaseGridSize(-sizeDiff)
+        instance.text = str(grid.cols)
 
     def gridSizeUpFunction(self, instance):
         grid = self.gridView.grid
@@ -237,7 +282,6 @@ class GridSpaceWindow(BoxLayout):
         grid = self.gridView.grid
         grid.decreaseGridSize(1)
         self.gridSizeInput.text = str(grid.cols)
-
 
                                 
 class DetailsWindow(BoxLayout):
@@ -266,6 +310,7 @@ class DetailsWindow(BoxLayout):
                 string += grid.layout[i * grid.cols + j]
         self.layoutText.text = "\"Layout\": \"" + string + "\","
 
+
 class MainWindow(BoxLayout):
     gridSpace = GridSpaceWindow()
     details = DetailsWindow()
@@ -279,6 +324,8 @@ class MainWindow(BoxLayout):
 
         self.add_widget(self.gridSpace)
         self.add_widget(self.details)
+
+
 
 class DBE(App):
     def build(self):
